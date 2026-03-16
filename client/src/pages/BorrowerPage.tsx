@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import React, { useState } from 'react';
 import { 
   LayoutDashboard, FolderLock, FileText, Activity, 
   Wallet, Users, Settings, Bell, Search, Menu, 

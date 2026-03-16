@@ -48,7 +48,7 @@ export const DocumentUploadRow: React.FC<DocumentUploadRowProps> = ({
           {file ? (
             <div className="flex items-center gap-3 bg-blue-50/50 pl-3 pr-1 py-1 rounded-lg border border-blue-100">
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-blue-900 truncate max-w-[120px]">{file.name}</span>
+                <span className="text-xs font-bold text-blue-900 truncate max-w-30">{file.name}</span>
                 <span className="text-[10px] text-blue-600 font-medium">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
               </div>
               <button 

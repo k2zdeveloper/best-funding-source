@@ -1,27 +1,29 @@
-import React from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { MainLayout } from './components/layout/MainLayout';
-import { LandingPage } from './pages/LandingPage';
-import { IntakeForm } from './pages/IntakeForm';
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthPortal } from './components/auth/AuthPortal';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { MainLayout } from './components/layout/MainLayout';
+import { LandingPage } from './pages/LandingPage';
+import { IntakeForm } from './pages/IntakeForm';
+import { LogOut, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-// --- Import the new dedicated enterprise dashboards ---
-import { BorrowerDashboard } from './components/borrower/BorrowerDashboard';
-import { LenderDashboard } from './components/lender/LenderDashboard';
+// --- ENTERPRISE BEST PRACTICE: CODE SPLITTING ---
+// Dashboards are dynamically imported. Unauthenticated users will never download this code.
+// Note: Assuming named exports based on your original imports.
+const BorrowerDashboard = lazy(() => import('./components/borrower/BorrowerDashboard').then(m => ({ default: m.BorrowerDashboard })));
+const LenderDashboard = lazy(() => import('./components/lender/LenderDashboard').then(m => ({ default: m.LenderDashboard })));
 
-// --- Shared Components (Kept strictly intact for Admin) ---
+// --- Shared Components (Extract these to separate files ASAP) ---
 const TopNavigation = ({ title }: { title: string }) => {
   const { user, role } = useAuth();
-  const navigate = useNavigate(); // Enterprise routing
+  const navigate = useNavigate();
   
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
-      navigate('/login', { replace: true }); // Clean redirect without page reload
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -52,7 +54,6 @@ const TopNavigation = ({ title }: { title: string }) => {
   );
 };
 
-// --- Dashboard Layouts (Admin kept inline as requested) ---
 const AdminDashboard = () => (
   <div className="min-h-screen bg-slate-50">
     <TopNavigation title="Enterprise Administration" />
@@ -65,109 +66,106 @@ const AdminDashboard = () => (
   </div>
 );
 
-// --- Auth Handling ---
+// --- Core Auth Logic ---
+const GlobalLoader = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+    <div className="bg-blue-600 p-3 rounded-2xl mb-4 animate-pulse shadow-lg shadow-blue-600/20">
+      <ShieldCheck className="h-8 w-8 text-white" />
+    </div>
+    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Authenticating Session...</p>
+  </div>
+);
+
 const AuthRedirector = () => {
   const { user, role, loading } = useAuth();
 
-  // Enterprise-grade smooth loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <div className="bg-blue-600 p-3 rounded-2xl mb-4 animate-pulse shadow-lg shadow-blue-600/20">
-          <ShieldCheck className="h-8 w-8 text-white" />
-        </div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Authenticating Session...</p>
-      </div>
-    );
-  }
+  if (loading) return <GlobalLoader />;
 
-  // Exact RBAC matching kept perfectly intact
-  if (user && role) {
-    if (role === 'super_admin' || role === 'admin') return <Navigate to="/admin-dashboard" replace />;
-    if (role === 'lender') return <Navigate to="/lender-dashboard" replace />;
-    if (role === 'borrower') return <Navigate to="/borrower-dashboard" replace />;
+  if (user) {
+    if (!role) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="flex items-center gap-2 text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <p className="text-xs font-medium">Verifying permissions...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Strict exact-match routing mapping
+    const roleRoutes: Record<string, string> = {
+      super_admin: '/admin-dashboard',
+      admin: '/admin-dashboard',
+      lender: '/lender-dashboard',
+      borrower: '/borrower-dashboard'
+    };
+
+    const target = roleRoutes[role];
+    if (target) return <Navigate to={target} replace />;
   }
 
   return <Navigate to="/login" replace />;
 };
 
-// --- Dynamic Fallback Route ---
-// Directs authenticated users to their dashboard, unauthenticated users to the homepage
 const FallbackRoute = () => {
   const { user } = useAuth();
-  
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <Navigate to="/" replace />;
+  return <Navigate to={user ? "/dashboard" : "/"} replace />;
 };
 
 // --- Main Application Routing ---
 export default function App() {
-  // We use the current URL path as a unique key for our Auth routes
-  const location = useLocation();
-
   return (
     <AuthProvider>
-      <Routes>
-        
-        {/* --- Public Marketing Routes --- */}
-        {/* MainLayout provides global Header/Footer only to marketing pages */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/apply" element={<IntakeForm />} />
-        </Route>
+      {/* Suspense boundary catches the lazy-loaded dashboard components */}
+      <Suspense fallback={<GlobalLoader />}>
+        <Routes>
+          
+          {/* --- Public Marketing Routes --- */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/apply" element={<IntakeForm />} />
+          </Route>
 
-        {/* --- Fullscreen Auth Portals --- */}
-        {/* Moved OUTSIDE of MainLayout so the split-screen design takes up 100% of the viewport */}
-        <Route 
-          path="/login" 
-          element={<AuthPortal key={location.pathname} initialMode="login" />} 
-        />
-        <Route 
-          path="/signup/borrower" 
-          element={<AuthPortal key={location.pathname} initialMode="signup" defaultRole="borrower" />} 
-        />
-        <Route 
-          path="/signup/lender" 
-          element={<AuthPortal key={location.pathname} initialMode="signup" defaultRole="lender" />} 
-        />
+          {/* --- Fullscreen Auth Portals --- */}
+          {/* CRITICAL FIX: Removed key={location.pathname} so React re-uses the component instance, allowing your CSS transitions to actually execute. */}
+          <Route path="/login" element={<AuthPortal initialMode="login" />} />
+          <Route path="/signup/borrower" element={<AuthPortal initialMode="signup" defaultRole="borrower" />} />
+          <Route path="/signup/lender" element={<AuthPortal initialMode="signup" defaultRole="lender" />} />
 
-        {/* --- Secure Dashboard Redirector --- */}
-        <Route path="/dashboard" element={<AuthRedirector />} />
+          {/* --- Secure Dashboard Redirector --- */}
+          <Route path="/dashboard" element={<AuthRedirector />} />
 
-        {/* --- Protected Dashboard Routes --- */}
-        <Route 
-          path="/admin-dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/lender-dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['lender']}>
-              {/* Uses the imported dedicated component */}
-              <LenderDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/borrower-dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['borrower']}>
-              {/* Uses the imported dedicated component */}
-              <BorrowerDashboard />
-            </ProtectedRoute>
-          } 
-        />
+          {/* --- Protected Dashboard Routes --- */}
+          <Route 
+            path="/admin-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/lender-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['lender']}>
+                <LenderDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/borrower-dashboard" 
+            element={
+              <ProtectedRoute allowedRoles={['borrower']}>
+                <BorrowerDashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        {/* Catch-all fallback */}
-        <Route path="*" element={<FallbackRoute />} />
-      </Routes>
+          {/* Catch-all fallback */}
+          <Route path="*" element={<FallbackRoute />} />
+        </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }

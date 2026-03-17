@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 import { AuthPortal } from './components/auth/AuthPortal';
 import { MainLayout } from './components/layout/MainLayout';
 import { LandingPage } from './pages/LandingPage';
@@ -11,11 +12,10 @@ import { supabase } from './lib/supabase';
 
 // --- ENTERPRISE BEST PRACTICE: CODE SPLITTING ---
 // Dashboards are dynamically imported. Unauthenticated users will never download this code.
-// Note: Assuming named exports based on your original imports.
 const BorrowerDashboard = lazy(() => import('./components/borrower/BorrowerDashboard').then(m => ({ default: m.BorrowerDashboard })));
 const LenderDashboard = lazy(() => import('./components/lender/LenderDashboard').then(m => ({ default: m.LenderDashboard })));
 
-// --- Shared Components (Extract these to separate files ASAP) ---
+// --- Shared Components ---
 const TopNavigation = ({ title }: { title: string }) => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -93,7 +93,9 @@ const AuthRedirector = () => {
       );
     }
 
-    // Strict exact-match routing mapping
+    // ENTERPRISE FIX: Safely cast the role to prevent casing-mismatch routing failures
+    const safeRole = String(role).toLowerCase().trim();
+
     const roleRoutes: Record<string, string> = {
       super_admin: '/admin-dashboard',
       admin: '/admin-dashboard',
@@ -101,8 +103,9 @@ const AuthRedirector = () => {
       borrower: '/borrower-dashboard'
     };
 
-    const target = roleRoutes[role];
-    if (target) return <Navigate to={target} replace />;
+    // If the role matches, go there. Otherwise, default to borrower dashboard.
+    const target = roleRoutes[safeRole] || '/borrower-dashboard';
+    return <Navigate to={target} replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -117,26 +120,25 @@ const FallbackRoute = () => {
 export default function App() {
   return (
     <AuthProvider>
-      {/* Suspense boundary catches the lazy-loaded dashboard components */}
       <Suspense fallback={<GlobalLoader />}>
         <Routes>
           
-          {/* --- Public Marketing Routes --- */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/apply" element={<IntakeForm />} />
+          {/* --- PUBLIC ROUTES (Locked out if authenticated) --- */}
+          <Route element={<PublicOnlyRoute />}>
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/apply" element={<IntakeForm />} />
+            </Route>
+
+            {/* Auth Portals */}
+            <Route path="/login" element={<AuthPortal initialMode="login" />} />
+            <Route path="/signup/borrower" element={<AuthPortal initialMode="signup" defaultRole="borrower" />} />
+            <Route path="/signup/lender" element={<AuthPortal initialMode="signup" defaultRole="lender" />} />
           </Route>
 
-          {/* --- Fullscreen Auth Portals --- */}
-          {/* CRITICAL FIX: Removed key={location.pathname} so React re-uses the component instance, allowing your CSS transitions to actually execute. */}
-          <Route path="/login" element={<AuthPortal initialMode="login" />} />
-          <Route path="/signup/borrower" element={<AuthPortal initialMode="signup" defaultRole="borrower" />} />
-          <Route path="/signup/lender" element={<AuthPortal initialMode="signup" defaultRole="lender" />} />
-
-          {/* --- Secure Dashboard Redirector --- */}
+          {/* --- SECURE ROUTES --- */}
           <Route path="/dashboard" element={<AuthRedirector />} />
 
-          {/* --- Protected Dashboard Routes --- */}
           <Route 
             path="/admin-dashboard" 
             element={

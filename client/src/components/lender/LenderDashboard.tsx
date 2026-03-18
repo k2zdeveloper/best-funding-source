@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
   ShieldCheck, LogOut, Bell, LayoutGrid, 
-  Settings, HelpCircle, FileText, CheckCircle2, Circle,
-  Briefcase
+  Settings, HelpCircle, CheckCircle2, Circle,
+  Briefcase, MessageSquare 
 } from 'lucide-react';
 import { VerificationBanner } from '../dashboard/VerificationBanner';
 
@@ -15,15 +15,16 @@ const LenderDealDetail = lazy(() => import('./views/LenderDealDetail').then(m =>
 const LenderSettings = lazy(() => import('./views/LenderSettings').then(m => ({ default: m.LenderSettings })));
 const LenderHelp = lazy(() => import('./views/LenderHelp').then(m => ({ default: m.LenderHelp })));
 const LenderLegal = lazy(() => import('./views/LenderLegal').then(m => ({ default: m.LenderLegal })));
+const LenderVerification = lazy(() => import('./views/LenderVerification').then(m => ({ default: m.LenderVerification })));
+const LenderMessages = lazy(() => import('./views/LenderMessages').then(m => ({ default: m.LenderMessages })));
 
-export type ViewState = 'overview' | 'marketplace' | 'settings' | 'help' | 'legal' | 'deal-detail';
+export type ViewState = 'overview' | 'marketplace' | 'settings' | 'help' | 'legal' | 'deal-detail' | 'verification' | 'messages';
 
 export const LenderDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   
-  // View Routing State
   const [currentView, setCurrentView] = useState<ViewState>('overview');
   const [selectedDeal, setSelectedDeal] = useState<any | null>(null);
   
@@ -35,7 +36,12 @@ export const LenderDashboard: React.FC = () => {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) return navigate('/login', { replace: true });
       
-      setUserData(user.user_metadata);
+      setUserData({
+        ...user.user_metadata,
+        id: user.id,
+        is_verified: user.user_metadata?.is_verified || false 
+      });
+      
       setLoading(false);
     };
     fetchSession();
@@ -56,77 +62,84 @@ export const LenderDashboard: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  // --- NEW: Routing Handler for Deals ---
-  // Sets the selected deal and changes the view to the full page layout
   const handleOpenDeal = (deal: any) => {
     setSelectedDeal(deal);
     setCurrentView('deal-detail');
-    window.scrollTo(0, 0); // Scroll to top when opening a new page
+    window.scrollTo(0, 0); 
   };
 
   const notifications = [
-    { id: 1, title: 'Verification Approved', time: '2h ago', read: false },
+    { id: 1, title: 'Verification Approved by Compliance.', time: '2h ago', read: false },
     { id: 2, title: 'New Deal: Project Alpha matches your criteria.', time: '1d ago', read: true },
   ];
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
         <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans pb-20">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
       
-      {/* --- MINIMALIST HEADER --- */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-40">
+      {/* --- PREMIUM HEADER --- */}
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-slate-900" />
-            <span className="font-bold text-sm tracking-tight">EnterpriseFunding</span>
+            <div className="bg-slate-900 p-1.5 rounded-lg shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-bold text-sm tracking-tight text-slate-900">
+              Enterprise<span className="text-slate-500">Funding</span>
+            </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-1">
-            <button onClick={() => setCurrentView('overview')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currentView === 'overview' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
-              Dashboard
+          <div className="hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+            <button onClick={() => setCurrentView('overview')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'overview' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
+              Overview
             </button>
-            <button onClick={() => setCurrentView('marketplace')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currentView === 'marketplace' || currentView === 'deal-detail' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
+            <button onClick={() => setCurrentView('marketplace')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'marketplace' || currentView === 'deal-detail' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
               Marketplace
             </button>
-            <button onClick={() => setCurrentView('settings')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currentView === 'settings' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
+            <button onClick={() => setCurrentView('settings')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'settings' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
               Settings
-            </button>
-            <button onClick={() => setCurrentView('help')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currentView === 'help' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
-              FAQ & Contact
-            </button>
-            <button onClick={() => setCurrentView('legal')} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${currentView === 'legal' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
-              Legal
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 sm:gap-3">
+          
+          {/* MESSAGING ICON */}
+          <button 
+            onClick={() => setCurrentView('messages')} 
+            className={`relative p-2 transition-colors rounded-full ${currentView === 'messages' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          </button>
+
+          {/* NOTIFICATIONS ICON */}
           <div className="relative" ref={notifRef}>
-            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-1.5 text-slate-500 hover:text-slate-900 transition-colors rounded-md hover:bg-slate-50">
-              <Bell className="w-4 h-4" />
-              {notifications.some(n => !n.read) && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-slate-900 rounded-full"></span>}
+            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-slate-500 hover:text-slate-900 transition-colors rounded-full hover:bg-slate-50">
+              <Bell className="w-5 h-5" />
+              {notifications.some(n => !n.read) && <span className="absolute top-1 right-1 w-2 h-2 bg-slate-900 rounded-full border-2 border-white"></span>}
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-lg shadow-xl animate-in fade-in slide-in-from-top-2 z-50">
-                <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">Notifications</span>
-                  <span className="text-[10px] text-slate-500 cursor-pointer hover:text-slate-900">Mark all read</span>
+              <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl animate-in fade-in slide-in-from-top-2 z-50 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-900">Activity Feed</span>
+                  <span className="text-[10px] font-bold text-slate-600 cursor-pointer hover:underline">Mark all read</span>
                 </div>
-                <div className="max-h-64 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto">
                   {notifications.map(n => (
-                    <div key={n.id} className="px-4 py-3 border-b border-slate-50 hover:bg-slate-50 cursor-pointer flex gap-3 items-start transition-colors">
-                      {n.read ? <Circle className="w-3 h-3 text-slate-200 mt-0.5" /> : <CheckCircle2 className="w-3 h-3 text-slate-900 mt-0.5" />}
+                    <div key={n.id} className="px-5 py-4 border-b border-slate-50 hover:bg-slate-50/80 cursor-pointer flex gap-3 items-start transition-colors group">
+                      <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${n.read ? 'bg-slate-200' : 'bg-slate-900 shadow-[0_0_8px_rgba(15,23,42,0.4)]'}`}></div>
                       <div>
-                        <p className={`text-xs ${n.read ? 'text-slate-600' : 'text-slate-900 font-bold'}`}>{n.title}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{n.time}</p>
+                        <p className={`text-sm leading-snug ${n.read ? 'text-slate-600' : 'text-slate-900 font-bold group-hover:text-slate-700 transition-colors'}`}>{n.title}</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">{n.time}</p>
                       </div>
                     </div>
                   ))}
@@ -134,7 +147,10 @@ export const LenderDashboard: React.FC = () => {
               </div>
             )}
           </div>
-          <button onClick={handleSignOut} className="flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+          
+          <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+          
+          <button onClick={handleSignOut} className="flex items-center gap-2 px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
             <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
@@ -143,35 +159,49 @@ export const LenderDashboard: React.FC = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         
-        {/* Hide verification banner if looking at a specific deal to maximize space */}
-        {currentView !== 'deal-detail' && <VerificationBanner />}
+        {!userData?.is_verified && currentView !== 'deal-detail' && currentView !== 'verification' && (
+          <VerificationBanner onVerifyClick={() => setCurrentView('verification')} />
+        )}
         
-        {/* Render the selected view dynamically */}
-        <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>}>
+        <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div></div>}>
           
           {currentView === 'overview' && <LenderOverview userData={userData} onOpenDeal={handleOpenDeal} />}
-          {currentView === 'marketplace' && <LenderMarketplace onOpenDeal={handleOpenDeal} />}
+          {currentView === 'marketplace' && <LenderMarketplace userData={userData} onOpenDeal={handleOpenDeal} />}
+          {currentView === 'messages' && <LenderMessages userData={userData} />}
           {currentView === 'settings' && <LenderSettings userData={userData} />}
           {currentView === 'help' && <LenderHelp />}
           {currentView === 'legal' && <LenderLegal />}
           
-          {/* NEW: Render the Full Page Deal Details */}
           {currentView === 'deal-detail' && selectedDeal && (
-            <LenderDealDetail 
-              deal={selectedDeal} 
-              onBack={() => setCurrentView('marketplace')} 
-            />
+            <LenderDealDetail deal={selectedDeal} userData={userData} onBack={() => setCurrentView('marketplace')} />
+          )}
+
+          {currentView === 'verification' && (
+            <LenderVerification user={userData} onComplete={() => setCurrentView('overview')} />
           )}
           
         </Suspense>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex justify-around p-3 z-40">
-        <button onClick={() => setCurrentView('overview')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'overview' ? 'text-slate-900' : 'text-slate-400'}`}><LayoutGrid className="w-5 h-5" /></button>
-        <button onClick={() => setCurrentView('marketplace')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'marketplace' || currentView === 'deal-detail' ? 'text-slate-900' : 'text-slate-400'}`}><Briefcase className="w-5 h-5" /></button>
-        <button onClick={() => setCurrentView('settings')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'settings' ? 'text-slate-900' : 'text-slate-400'}`}><Settings className="w-5 h-5" /></button>
-        <button onClick={() => setCurrentView('help')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'help' ? 'text-slate-900' : 'text-slate-400'}`}><HelpCircle className="w-5 h-5" /></button>
+      {/* Mobile Bottom Navigation (4 Icons max for clean UX) */}
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex justify-around p-2 z-40 pb-safe">
+        <button onClick={() => setCurrentView('overview')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'overview' ? 'text-slate-900' : 'text-slate-400'}`}>
+          <LayoutGrid className="w-5 h-5" />
+          <span className="text-[9px] font-bold">Home</span>
+        </button>
+        <button onClick={() => setCurrentView('marketplace')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'marketplace' || currentView === 'deal-detail' ? 'text-slate-900' : 'text-slate-400'}`}>
+          <Briefcase className="w-5 h-5" />
+          <span className="text-[9px] font-bold">Market</span>
+        </button>
+        <button onClick={() => setCurrentView('messages')} className={`flex flex-col items-center gap-1 p-2 relative ${currentView === 'messages' ? 'text-slate-900' : 'text-slate-400'}`}>
+          <MessageSquare className="w-5 h-5" />
+          <span className="absolute top-1.5 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          <span className="text-[9px] font-bold">Chat</span>
+        </button>
+        <button onClick={() => setCurrentView('settings')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'settings' ? 'text-slate-900' : 'text-slate-400'}`}>
+          <Settings className="w-5 h-5" />
+          <span className="text-[9px] font-bold">Settings</span>
+        </button>
       </div>
     </div>
   );

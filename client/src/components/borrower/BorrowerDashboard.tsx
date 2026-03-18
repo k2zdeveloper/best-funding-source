@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
   ShieldCheck, LogOut, Bell, LayoutGrid, 
-  Settings, CheckCircle2, Circle, Briefcase, MessageSquare, PlusCircle
+  Settings, CheckCircle2, Circle, MessageSquare, PlusCircle
 } from 'lucide-react';
 import { VerificationBanner } from '../dashboard/VerificationBanner';
 
@@ -12,18 +12,16 @@ const BorrowerOverview = lazy(() => import('./views/BorrowerOverview').then(m =>
 const BorrowerPitchBuilder = lazy(() => import('./views/BorrowerPitchBuilder').then(m => ({ default: m.BorrowerPitchBuilder })));
 const BorrowerMessages = lazy(() => import('./views/BorrowerMessages').then(m => ({ default: m.BorrowerMessages })));
 const BorrowerSettings = lazy(() => import('./views/BorrowerSettings').then(m => ({ default: m.BorrowerSettings })));
+const BorrowerVerification = lazy(() => import('./views/BorrowerVerification').then(m => ({ default: m.BorrowerVerification })));
 
-export type BorrowerViewState = 'overview' | 'pitch' | 'messages' | 'settings';
+export type BorrowerViewState = 'overview' | 'pitch' | 'messages' | 'settings' | 'verification';
 
 export const BorrowerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   
-  // Navigation State
   const [currentView, setCurrentView] = useState<BorrowerViewState>('overview');
-  
-  // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +29,12 @@ export const BorrowerDashboard: React.FC = () => {
     const fetchSession = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) return navigate('/login', { replace: true });
-      setUserData(user.user_metadata);
+      
+      setUserData({
+        ...user.user_metadata,
+        id: user.id 
+      });
+      
       setLoading(false);
     };
     fetchSession();
@@ -52,11 +55,10 @@ export const BorrowerDashboard: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  // Mock Notifications - Specifically highlighting Lender Engagement
   const notifications = [
-    { id: 1, title: 'Apex Institutional downloaded your Financials.', time: '10m ago', read: false, type: 'download' },
-    { id: 2, title: 'New message from Crestview Capital.', time: '1h ago', read: false, type: 'message' },
-    { id: 3, title: 'Verification Complete.', time: '2d ago', read: true, type: 'system' },
+    { id: 1, title: 'Apex Institutional downloaded your Financials.', time: '10m ago', read: false },
+    { id: 2, title: 'New message from Crestview Capital.', time: '1h ago', read: false },
+    { id: 3, title: 'Welcome to BestFunding.', time: '2d ago', read: true },
   ];
 
   if (loading) {
@@ -70,7 +72,7 @@ export const BorrowerDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans pb-20">
       
-      {/* --- PREMIUM HEADER --- */}
+      {/* --- PREMIUM HEADER (Structurally identical to Lender, but Blue Theme) --- */}
       <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-3 flex justify-between items-center sticky top-0 z-40 shadow-sm">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
@@ -82,7 +84,6 @@ export const BorrowerDashboard: React.FC = () => {
             </span>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
             <button onClick={() => setCurrentView('overview')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'overview' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
               Overview
@@ -90,21 +91,28 @@ export const BorrowerDashboard: React.FC = () => {
             <button onClick={() => setCurrentView('pitch')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'pitch' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
               Capital Request
             </button>
-            <button onClick={() => setCurrentView('messages')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'messages' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
-              Messages
-            </button>
             <button onClick={() => setCurrentView('settings')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${currentView === 'settings' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}>
               Settings
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {/* INTERACTIVE NOTIFICATIONS */}
+        <div className="flex items-center gap-1 sm:gap-3">
+          
+          {/* MESSAGING ICON */}
+          <button 
+            onClick={() => setCurrentView('messages')} 
+            className={`relative p-2 transition-colors rounded-full ${currentView === 'messages' ? 'bg-slate-100 text-blue-600' : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'}`}
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+          </button>
+
+          {/* NOTIFICATIONS ICON */}
           <div className="relative" ref={notifRef}>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-slate-500 hover:text-blue-600 transition-colors rounded-full hover:bg-blue-50">
               <Bell className="w-5 h-5" />
-              {notifications.some(n => !n.read) && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+              {notifications.some(n => !n.read) && <span className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full border-2 border-white"></span>}
             </button>
 
             {showNotifications && (
@@ -128,7 +136,9 @@ export const BorrowerDashboard: React.FC = () => {
             )}
           </div>
           
-          <button onClick={handleSignOut} className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
+          <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
+          
+          <button onClick={handleSignOut} className="flex items-center gap-2 px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
             <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
@@ -136,17 +146,26 @@ export const BorrowerDashboard: React.FC = () => {
 
       {/* --- MAIN CONTENT AREA --- */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <VerificationBanner />
+        
+        {!userData?.is_verified && currentView !== 'verification' && (
+          <VerificationBanner onVerifyClick={() => setCurrentView('verification')} />
+        )}
         
         <Suspense fallback={<div className="h-64 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+          
           {currentView === 'overview' && <BorrowerOverview userData={userData} onNavigate={setCurrentView} />}
-          {currentView === 'pitch' && <BorrowerPitchBuilder userData={userData} />}
-          {currentView === 'messages' && <BorrowerMessages />}
+          {currentView === 'messages' && <BorrowerMessages userData={userData} onNavigate={(view) => setCurrentView(view as BorrowerViewState)} />}
           {currentView === 'settings' && <BorrowerSettings userData={userData} />}
+          {currentView === 'pitch' && <BorrowerPitchBuilder userData={userData} onNavigate={(view) => setCurrentView(view as BorrowerViewState)} />}
+          
+          {currentView === 'verification' && (
+            <BorrowerVerification user={userData} onComplete={() => setCurrentView('overview')} />
+          )}
+
         </Suspense>
       </main>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation (4 Icons max for clean UX) */}
       <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex justify-around p-2 z-40 pb-safe">
         <button onClick={() => setCurrentView('overview')} className={`flex flex-col items-center gap-1 p-2 ${currentView === 'overview' ? 'text-blue-600' : 'text-slate-400'}`}>
           <LayoutGrid className="w-5 h-5" />

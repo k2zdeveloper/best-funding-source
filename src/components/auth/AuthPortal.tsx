@@ -28,8 +28,8 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({
       {/* 2. ADD YOUR MAIN NAVBAR HERE */}
       <Navigation />
 
-      {/* 3. ADJUST PADDING: Changed to pt-32 so it clears the fixed navbar! */}
-      <div className="w-full min-h-screen bg-slate-50 flex items-center justify-center p-4 pt-32 lg:p-8">
+      {/* 3. ADJUST PADDING: Changed to pt-40 lg:pt-48 to create a clear separation from the fixed navbar! */}
+      <div className="w-full min-h-screen bg-slate-50 flex items-center justify-center px-4 pt-40 pb-12 lg:pt-30 lg:pb-16 lg:px-8">
         <div className="relative w-full max-w-5xl h-[650px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col lg:flex-row">
           
           {/* Left Brand Panel */}

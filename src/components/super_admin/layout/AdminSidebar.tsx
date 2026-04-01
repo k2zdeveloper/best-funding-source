@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShieldCheck, FileText, LifeBuoy, Settings, 
   LogOut, AlertCircle, ChevronLeft, ChevronRight, Users, 
-  MessageSquareWarning, Ban, X, Briefcase
+  MessageSquareWarning, Ban, X, Briefcase, Inbox
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { supabase } from '../../../lib/supabase';
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { path: 'users', label: 'Identity Directory', icon: Users },
   { path: 'verifications', label: 'KYC & Compliance', icon: ShieldCheck },
   { path: 'loans', label: 'Deal Flow', icon: Briefcase },
+  { path: 'intakes', label: 'Intake Queue', icon: Inbox },
   { path: 'reports', label: 'Chat & Abuse', icon: MessageSquareWarning },
   { path: 'team', label: 'Access Control', icon: ShieldCheck },
   { path: 'support', label: 'Support Desk', icon: LifeBuoy },

@@ -10,7 +10,7 @@ export const submitIntakeForm = async (
   try {
     const submissionId = `sub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-    // 1. Process File Uploads
+    // 1. Process File Uploads securely
     for (const [key, file] of Object.entries(docs)) {
       if (file) {
         const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
@@ -25,30 +25,32 @@ export const submitIntakeForm = async (
       }
     }
 
-    // 2. Inject into Database
-    const { error: dbError } = await supabase.from('pre_qualifications').insert([{
-      company_name: formData.company_name,
-      contact_email: formData.contact_email,
-      phone_number: formData.phone_number,   
-      website: formData.website,             
-      headquarters: formData.headquarters,   
-      industry: formData.industry,
-      annual_revenue: Number(formData.annual_revenue),
-      requested_amount: Number(formData.requested_amount),
-      years_in_business: Number(formData.years_in_business),
-      use_of_funds: formData.use_of_funds,
-      document_paths: uploadedPaths 
-    }]);
+    // 2. Inject into Database via Secure Edge Function (Auto-Provisioning)
+    const { data, error: functionError } = await supabase.functions.invoke('submit-intake', {
+      body: {
+        formData: {
+          ...formData,
+          annual_revenue: Number(formData.annual_revenue),
+          requested_amount: Number(formData.requested_amount),
+          years_in_business: Number(formData.years_in_business),
+        },
+        documentPaths: uploadedPaths
+      }
+    });
 
-    // If the database insert fails, clean up the files we just uploaded to storage
-    if (dbError) {
+    // 3. Error Handling & File Rollback
+    if (functionError || data?.error) {
       if (uploadedPaths.length > 0) {
         await supabase.storage.from('secure_vault').remove(uploadedPaths);
       }
-      throw new Error(dbError?.message || 'Database injection failed.');
+      throw new Error(functionError?.message || data?.error || 'Database injection failed via secure edge.');
     }
 
-    return { success: true };
+    // 4. Return success and the new user flag
+    return { 
+      success: true,
+      isNewUser: data?.isNewUser 
+    };
     
   } catch (err: any) {
     console.error('Submission Error:', err);

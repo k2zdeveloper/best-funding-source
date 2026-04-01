@@ -91,14 +91,19 @@ export const useAdminUserDetail = (userId: string | undefined) => {
 
     try {
       // 1. Fetch Profile
+      // 1. Fetch Profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); // Changed to maybeSingle()
       
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("User profile not found in database.");
+      
+      // Now, instead of a database crash, your UI will catch this and show a clean error!
+      if (!profileData) {
+        throw new Error("This user exists in Auth, but has no Profile data yet. They may need to finish signing up.");
+      }
       
       setUser(profileData as FullUserProfile);
       const role = profileData.role;

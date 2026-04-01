@@ -1,5 +1,6 @@
-import React, { Suspense, lazy, Component, type ReactNode } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, Component, type ReactNode, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
@@ -19,14 +20,15 @@ const LenderDashboard = lazy(() => import('./components/lender/LenderDashboard')
 const SuperAdminDashboard = lazy(() => import('./components/super_admin/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 
 // Admin Views
+const AdminIntakeQueue = lazy(() => import('./components/super_admin/views/AdminIntakeQueue').then(m => ({ default: m.AdminIntakeQueue })));
 const AdminOverview = lazy(() => import('./components/super_admin/views/AdminOverview').then(m => ({ default: m.AdminOverview })));
 const AdminUsers = lazy(() => import('./components/super_admin/views/AdminUsers').then(m => ({ default: m.AdminUsers })));
 const AdminUserDetail = lazy(() => import('./components/super_admin/views/AdminUserDetail').then(m => ({ default: m.AdminUserDetail })));
 const AdminVerifications = lazy(() => import('./components/super_admin/views/AdminVerifications').then(m => ({ default: m.AdminVerifications })));
 const AdminAudits = lazy(() => import('./components/super_admin/views/AdminAudits').then(m => ({ default: m.AdminAudits })));
-// --- NEW: Added Access Control Import ---
 const AdminAccessControl = lazy(() => import('./components/super_admin/views/AdminAccessControl').then(m => ({ default: m.AdminAccessControl })));
 const AdminLoans = lazy(() => import('./components/super_admin/views/AdminLoans').then(m => ({ default: m.AdminLoans })));
+
 // ==========================================
 // 2. GLOBAL SYSTEM COMPONENTS
 // ==========================================
@@ -79,6 +81,50 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, { hasError:
 // 3. AUTHENTICATION ROUTING LOGIC
 // ==========================================
 
+// --- NEW: THE BOUNCER ---
+// This listens for silent logins (like clicking an email link) and teleports the user
+const GlobalAuthListener = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // 1. Capture the URL hash INSTANTLY before Supabase cleans it up
+    const initialHash = window.location.hash;
+    const isInviteOrRecovery = initialHash.includes('type=invite') || initialHash.includes('type=recovery');
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      
+      // 2. Listen for the login event or password recovery event
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+        
+        // Determine where they belong
+        const role = session?.user?.user_metadata?.role || 'borrower';
+        let targetRoute = '/borrower-dashboard';
+        
+        if (role === 'admin' || role === 'super_admin') {
+          targetRoute = '/admin-dashboard';
+        } else if (role === 'lender') {
+          targetRoute = '/lender-dashboard';
+        }
+
+        // 3. THE TELEPORT: If they came from an email, force them to the dashboard 
+        // AND pass the hash along so the Password Modal triggers!
+        if (isInviteOrRecovery || event === 'PASSWORD_RECOVERY') {
+          navigate(targetRoute + initialHash, { replace: true });
+        } 
+        // Or if they just logged in normally and are sitting on the landing page
+        else if (location.pathname === '/' || location.pathname === '/login' || location.pathname === '/apply') {
+          navigate(targetRoute, { replace: true });
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate, location.pathname]);
+
+  return null;
+};
+
 const AuthRedirector = () => {
   const { user, role, loading } = useAuth();
 
@@ -120,6 +166,9 @@ export default function App() {
   return (
     <GlobalErrorBoundary>
       <AuthProvider>
+        {/* --- NEW: Active listener catching email clicks --- */}
+        <GlobalAuthListener />
+        
         <Suspense fallback={<GlobalLoader />}>
           <Routes>
             
@@ -152,12 +201,9 @@ export default function App() {
               <Route path="verifications" element={<AdminVerifications />} />
              
               <Route path="reports" element={<AdminAudits />} />
-              {/* 👇 THE FIX: "loans" now properly points to AdminLoans */}
               <Route path="loans" element={<AdminLoans />} />
-              
-              {/* 👇 "reports" strictly points to AdminAudits */}
+              <Route path="intakes" element={<AdminIntakeQueue />} />
               <Route path="reports" element={<AdminAudits />} />
-              {/* --- NEW: Access Control Route --- */}
               <Route path="team" element={<AdminAccessControl />} />
               
               {/* Placeholders for pending configurations */}

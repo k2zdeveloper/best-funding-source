@@ -19,7 +19,7 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
   const [showSignModal, setShowSignModal] = useState(false);
   const [selectedTermSheet, setSelectedTermSheet] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [rawPdfUrl, setRawPdfUrl] = useState<string | null>(null); // For the "open in new tab" link
+  const [rawPdfUrl, setRawPdfUrl] = useState<string | null>(null); 
   
   const [borrowerSignatureBase64, setBorrowerSignatureBase64] = useState<string | null>(null);
   const [legalConsent, setLegalConsent] = useState(false);
@@ -79,18 +79,15 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
     }
   };
 
-  // --- THE URL HACK ---
   const openSigningModal = async (ts: any) => {
     setSelectedTermSheet(ts);
     setBorrowerSignatureBase64(null);
     setLegalConsent(false);
     
-    // Create the temporary URL
     const { data } = await supabase.storage.from('documents').createSignedUrl(ts.document_url, 3600);
     
     if (data?.signedUrl) {
       setRawPdfUrl(data.signedUrl);
-      // Append the magic parameters to hide the toolbar and fit the page perfectly!
       setPreviewUrl(`${data.signedUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`);
     }
     
@@ -131,8 +128,10 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
 
     setIsAccepting(true);
     try {
+      // 1. Stamp the PDF
       const executedPdfPath = await addBorrowerSignature(selectedTermSheet.document_url, borrowerSignatureBase64);
 
+      // 2. Update the Term Sheet Status
       const { data: updatedRow, error: updateError } = await supabase
         .from('term_sheets')
         .update({ status: 'accepted', document_url: executedPdfPath })
@@ -142,6 +141,27 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
       if (updateError) throw updateError;
       if (!updatedRow || updatedRow.length === 0) throw new Error("Database security blocked the update.");
 
+      // --- 3. THE MAGIC TRIGGER: COMMIT THE CAPITAL (WITH LOUD ALARM) ---
+     // --- 3. THE MAGIC TRIGGER: COMMIT THE CAPITAL ---
+      // Safely convert both to numbers, do the math, then force it BACK to a string!
+      const currentFunded = Number(deal.funded_amount) || 0;
+      const sheetAmount = Number(selectedTermSheet.facility_amount) || 0;
+      const finalAmountString = (currentFunded + sheetAmount).toString();
+      
+      const { data: fundData, error: fundError } = await supabase
+        .from('loan_postings')
+        .update({ funded_amount: finalAmountString })
+        .eq('id', deal.id)
+        .select();
+
+      if (fundError || !fundData || fundData.length === 0) {
+        alert("🚨 DATABASE SECURITY BLOCK! Run the SQL Override in Supabase!");
+        throw new Error("Row Level Security blocked the funding update.");
+      }
+      // ----------------------------------------------
+      // ----------------------------------------------
+
+      // 4. Send Notification
       await supabase.from('notifications').insert({
         user_id: selectedTermSheet.lender_id,
         title: 'Term Sheet Executed!',
@@ -152,6 +172,8 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
       alert("Term Sheet Fully Executed!");
       setShowSignModal(false);
       setBorrowerSignatureBase64(null);
+      
+      // 5. Refresh data to instantly update the Borrower's progress bar
       fetchDealAndOffers(); 
 
     } catch (error: any) {
@@ -193,8 +215,8 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
 
         {/* PROGRESS BAR */}
         <div className="w-full md:w-72 shrink-0 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-500">Syndication Progress</span><span className={fundingPercentage > 0 ? "text-[#1B6FA5]" : "text-slate-400"}>{Math.floor(fundingPercentage)}%</span></div>
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden"><div className="bg-[#21B0A6] h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(fundingPercentage, 100)}%` }}></div></div>
+          <div className="flex justify-between text-xs font-bold mb-2"><span className="text-slate-500">Syndication Progress</span><span className={fundingPercentage >= 100 ? "text-emerald-600" : "text-[#1B6FA5]"}>{Math.floor(fundingPercentage)}%</span></div>
+          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden"><div className={`h-full rounded-full transition-all duration-1000 ${fundingPercentage >= 100 ? 'bg-emerald-500' : 'bg-[#21B0A6]'}`} style={{ width: `${Math.min(fundingPercentage, 100)}%` }}></div></div>
           <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest"><span>{formatCurrency(deal.funded_amount)}</span><span>{formatCurrency(deal.facility_amount)}</span></div>
         </div>
       </div>
@@ -285,7 +307,6 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
       {showSignModal && selectedTermSheet && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           
-          {/* We made the modal taller: 90vh */}
           <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in zoom-in-95">
             
             {/* Modal Header */}
@@ -306,7 +327,6 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
               {/* LEFT SIDE: The "Desk" */}
               <div className="flex-1 flex flex-col relative overflow-hidden border-r border-slate-300">
                 
-                {/* Tiny header bar for the open tab link */}
                 <div className="flex items-center justify-between px-4 py-2 bg-slate-100 border-b border-slate-300 shrink-0 z-10 shadow-sm">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Document Preview</h4>
                   <a href={rawPdfUrl || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] font-bold text-[#1B6FA5] hover:text-[#155A8A] transition-colors uppercase">
@@ -314,10 +334,8 @@ export const BorrowerPitchDetail: React.FC<BorrowerPitchDetailProps> = ({ pitchI
                   </a>
                 </div>
                 
-                {/* The Scrolling Desk Area */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative flex justify-center">
                   {previewUrl ? (
-                    /* The "Bond Paper" Container - 8.5 x 11 aspect ratio */
                     <div className="w-full max-w-[800px] bg-white shadow-2xl ring-1 ring-slate-900/5 aspect-[8.5/11] relative overflow-hidden my-auto shrink-0">
                       <iframe 
                         src={previewUrl} 

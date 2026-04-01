@@ -120,7 +120,7 @@ export const useAuthForm = ({ initialMode, defaultRole }: AuthFormOptions) => {
           password,
           options: {
             data: {
-              requested_role: currentRole, 
+              role: currentRole, 
               company_name: companyName.trim(),
               ...(currentRole === 'borrower' 
                 ? { revenue, loan_amount: loanAmount, industry } 

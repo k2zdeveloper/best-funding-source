@@ -1,4 +1,4 @@
-export type DocKey = 'tax_returns' | 'pl_statement' | 'bank_statements' | 'pitch_deck';
+export type DocKey = 'pnl' | 'balance_sheet' | 'ar_aging';
 
 export interface FormState {
   company_name: string;
@@ -7,13 +7,14 @@ export interface FormState {
   website: string;
   headquarters: string;
   industry: string;
-  annual_revenue: string; // Kept as string for UI formatting (e.g. "$5,000,000")
-  requested_amount: string;
-  years_in_business: string;
+  annual_revenue: string | number;
+  requested_amount: string | number;
+  years_in_business: string | number;
   use_of_funds: string;
 }
 
 export interface SubmissionResult {
   success: boolean;
   error?: string;
+  isNewUser?: boolean; // <-- The flag that tells the UI if an account was created
 }

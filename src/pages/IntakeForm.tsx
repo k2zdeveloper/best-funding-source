@@ -14,6 +14,7 @@ export const IntakeForm: React.FC = () => {
     formData,
     docs,
     uploadErrors,
+    isNewAccount, // Destructured from our updated hook
     handleTextChange,
     handleDocSelect,
     removeDoc,
@@ -22,18 +23,32 @@ export const IntakeForm: React.FC = () => {
     submitForm
   } = useIntakeForm();
 
-  // --- SUCCESS STATE ---
+  // --- SMART SUCCESS STATE ---
+  // --- SMART SUCCESS STATE ---
   if (submitStatus === 'success') {
+    const successTitle = isNewAccount ? "Account Created & Deal Secured" : "Deal Added to Account";
+    
+    // 👇 Update this text so it tells them to click the link!
+    const successMessage = isNewAccount 
+      ? "Your deal has been encrypted and routed to underwriting. We have automatically created a secure account for you. Please check your email for your secure invitation link to access your dashboard."
+      : "Your deal has been successfully added to your existing account profile. It is currently in the underwriting queue. Log in to your dashboard to track its status.";
     return (
       <div className="min-h-screen flex items-center justify-center pt-24 px-4 sm:px-6 bg-slate-50">
         <div className="max-w-md w-full mx-auto p-8 md:p-12 bg-white rounded-2xl shadow-xl border border-slate-100 text-center transform transition-all duration-700 ease-out opacity-100 translate-y-0">
-          {/* Changed to brand Teal */}
           <CheckCircle className="w-16 h-16 text-[#21B0A6] mx-auto mb-6" />
-          <h2 className="text-3xl font-serif font-bold text-[#0A2235] mb-3">Transmission Secured</h2>
-          <p className="text-slate-500 mb-10 leading-relaxed">Enterprise financial data and documents have been encrypted and routed directly to underwriting. Expect correspondence within 24 hours.</p>
-          <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#1B6FA5] border-b-2 border-[#1B6FA5] pb-1 hover:text-[#21B0A6] hover:border-[#21B0A6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#21B0A6] focus:ring-offset-4 rounded-sm">
-            Return to Homepage <ArrowRight className="w-3 h-3" />
-          </Link>
+          <h2 className="text-2xl font-serif font-bold text-[#0A2235] mb-3 leading-tight">{successTitle}</h2>
+          <p className="text-slate-500 mb-10 leading-relaxed text-sm">{successMessage}</p>
+          <div className="flex flex-col gap-4 items-center">
+            {isNewAccount ? (
+              <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#1B6FA5] border-b-2 border-[#1B6FA5] pb-1 hover:text-[#21B0A6] hover:border-[#21B0A6] transition-colors focus:outline-none focus:ring-2 focus:ring-[#21B0A6] focus:ring-offset-4 rounded-sm">
+                Return to Homepage <ArrowRight className="w-3 h-3" />
+              </Link>
+            ) : (
+              <Link to="/login" className="inline-flex items-center gap-2 px-6 py-3 bg-[#1B6FA5] text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-[#0A2235] transition-colors focus:outline-none focus:ring-2 focus:ring-[#1B6FA5] focus:ring-offset-2">
+                Go to Secure Login <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -46,7 +61,6 @@ export const IntakeForm: React.FC = () => {
   const totalSteps = 4;
 
   return (
-    // ADDED: pt-28 md:pt-36 to clear the fixed navbar on all devices
     <div className="max-w-6xl mx-auto pt-28 md:pt-36 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 px-4 sm:px-6">
       
       {/* --- SIDEBAR / INFO --- */}
@@ -59,14 +73,9 @@ export const IntakeForm: React.FC = () => {
             </p>
           </div>
           
-          {/* Adjusted image height for mobile (h-48) and desktop (md:h-64) */}
           <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden mb-8 shadow-xl group border border-[#1B6FA5]/10">
-            {/* FIXED: Replaced broken Unsplash link with a reliable corporate data/security image */}
             <img src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop" alt="Secure Server" className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-700" />
-            
-            {/* Gradient using brand Navy */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A2235]/95 via-[#0A2235]/50 to-transparent"></div>
-            
             <div className="absolute bottom-6 left-6 right-6 text-white">
               <div className="flex items-center gap-2 mb-2">
                 <Lock className="w-4 h-4 text-[#21B0A6]" />
@@ -97,7 +106,6 @@ export const IntakeForm: React.FC = () => {
             </div>
             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div 
-                // Using brand Teal for the progress bar
                 className="h-full bg-[#21B0A6] transition-all duration-500 ease-out"
                 style={{ width: `${(step / totalSteps) * 100}%` }}
               ></div>
@@ -111,7 +119,6 @@ export const IntakeForm: React.FC = () => {
               {step === 1 && (
                 <div className="space-y-6 md:space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                    {/* INPUT COMPONENT: Updated focus border and text colors to brand Teal */}
                     <div className="relative z-0 w-full group">
                       <input type="text" name="company_name" id="company_name" required value={formData.company_name} onChange={handleTextChange} className="block py-4 px-0 w-full text-base md:text-lg text-slate-900 bg-transparent border-0 border-b border-slate-300 appearance-none focus:outline-none focus:ring-0 focus:border-[#21B0A6] peer transition-colors" placeholder=" " />
                       <label htmlFor="company_name" className="peer-focus:font-medium absolute text-slate-500 duration-300 transform -translate-y-6 scale-75 top-4 -z-10 origin-[0] peer-focus:left-0 peer-focus:text-[#21B0A6] peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-6">Legal Entity Name</label>
@@ -252,7 +259,6 @@ export const IntakeForm: React.FC = () => {
                 <button 
                   type="submit" 
                   disabled={isSubmitting} 
-                  // Updated to Brand Teal and Brand Blue hover
                   className="group relative inline-flex items-center justify-center gap-3 px-6 md:px-8 py-3.5 bg-[#21B0A6] text-white text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] rounded-full overflow-hidden transition-all hover:bg-[#1B6FA5] hover:shadow-lg hover:shadow-[#1B6FA5]/20 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[#21B0A6] focus:ring-offset-2"
                 >
                   {isSubmitting ? (

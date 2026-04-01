@@ -10,19 +10,21 @@ const ALLOWED_TYPES = [
   'text/csv'
 ];
 
+// FIXED: Using export const here resolves the "does not provide an export" error
 export const useIntakeForm = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [animateDirection, setAnimateDirection] = useState<'forward' | 'backward'>('forward');
+  const [isNewAccount, setIsNewAccount] = useState(false);
 
-const [formData, setFormData] = useState<FormState>({
+  const [formData, setFormData] = useState<FormState>({
     company_name: '',
     contact_email: '',
-    phone_number: '', // <-- NEW
-    website: '',      // <-- NEW
-    headquarters: '', // <-- NEW
+    phone_number: '', 
+    website: '',      
+    headquarters: '', 
     industry: 'Logistics & 3PL Warehousing',
     annual_revenue: '',
     requested_amount: '',
@@ -85,14 +87,14 @@ const [formData, setFormData] = useState<FormState>({
     setSubmitStatus('idle');
     setErrorMessage('');
     
-    // Call our newly isolated service
     const result = await submitIntakeForm(formData, docs);
 
     if (result.success) {
+      setIsNewAccount(result.isNewUser || false);
       setSubmitStatus('success');
     } else {
       setSubmitStatus('error');
-      setErrorMessage(result.error as string);
+      setErrorMessage(result.error as string || 'An unexpected error occurred.');
     }
     
     setIsSubmitting(false);
@@ -107,6 +109,7 @@ const [formData, setFormData] = useState<FormState>({
     formData,
     docs,
     uploadErrors,
+    isNewAccount,
     handleTextChange,
     handleDocSelect,
     removeDoc,
